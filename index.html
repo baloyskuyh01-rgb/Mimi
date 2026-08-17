@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Mimi Pixel Pet Assistant</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: transparent; /* Transparan agar mendukung mode overlay Android */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            position: relative;
+        }
+
+        #game-viewport {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            pointer-events: none; /* Klik tembus ke aplikasi di bawahnya jika dalam mode overlay */
+        }
+
+        /* Container karakter Mimi */
+        #mimi-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            will-change: transform;
+            pointer-events: auto; /* Mimi tetap bisa diinteraksi */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        /* Canvas rendering Mimi & kedip piksel */
+        #mimi-canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            display: block;
+        }
+
+        /* Notifikasi di atas kepala (Tidur Zzz / Jatuh / Suara) */
+        #mimi-notification {
+            position: absolute;
+            top: -1.2em;
+            left: 50%;
+            transform: translateX(-50%);
+            line-height: 1;
+            text-align: center;
+            pointer-events: none;
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        /* Tombol Toggle Panel UI */
+        #ui-toggle {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            background: rgba(0, 0, 0, 0.75);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 101;
+            backdrop-filter: blur(4px);
+            pointer-events: auto;
+        }
+
+        /* Panel Kontrol UI */
+        #ui-panel {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            background: rgba(18, 18, 20, 0.9);
+            color: #fff;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 12px;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            width: 240px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: auto;
+        }
+
+        #ui-panel.collapsed {
+            transform: translateY(-140%);
+        }
+
+        .panel-title {
+            font-weight: 800;
+            margin-bottom: 10px;
+            text-align: center;
+            color: #ff80ab;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .control-group {
+            margin-bottom: 10px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-weight: 600;
+            color: #ccc;
+        }
+
+        .control-group input[type="range"],
+        .control-group select {
+            width: 100%;
+            height: 28px;
+            border-radius: 4px;
+            accent-color: #ff4081;
+            background: #2a2a2e;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 0 4px;
+        }
+
+        .control-group input[type="range"] {
+            height: 4px;
+        }
+
+        .toggle-btn {
+            background: #333;
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 700;
+            transition: background 0.2s;
+        }
+
+        .toggle-btn.active {
+            background: #4caf50;
+        }
+
+        .btn-action {
+            background: #00897b;
+            color: #fff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 6px;
+            font-weight: 700;
+        }
+
+        .btn-reset {
+            background: #e91e63;
+            color: #fff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 6px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+    <button id="ui-toggle" onclick="toggleUI()">MENU</button>
+
+    <div id="ui-panel">
+        <div class="panel-title">Mimi Assistant</div>
+        
+        <div class="control-group">
+            <label>Ukuran Mimi <span id="size-val">60px</span></label>
+            <input type="range" id="size-slider" min="20" max="120" value="60">
+        </div>
+
+        <div class="control-group">
+            <label>Ukuran Notif <span id="notif-scale-val">0.40x</span></label>
+            <input type="range" id="notif-scale-slider" min="0.2" max="0.8" step="0.05" value="0.4">
+        </div>
+
+        <div class="control-group">
+            <label>Kecepatan <span id="speed-val">1.0x</span></label>
+            <input type="range" id="speed-slider" min="0.5" max="2.5" step="0.1" value="1.0">
+        </div>
+
+        <div class="control-group">
+            <label>Kunci Rotasi Layar</label>
+            <select id="orient-select" onchange="changeOrientation(this.value)">
+                <option value="auto">Otomatis / Bebas</option>
+                <option value="portrait">Potret (Portrait)</option>
+                <option value="landscape">Lansekap (Landscape)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label style="margin-bottom: 6px;">Kelakuan Random</label>
+            <button id="random-btn" class="toggle-btn active" onclick="toggleRandom()">ON</button>
+        </div>
+
+        <button class="btn-action" onclick="readScreenText()">📖 Baca Teks Layar</button>
+        <button class="btn-action" onclick="toggleOverlayMode()">📱 Mode Overlay APK</button>
+        <button class="btn-reset" onclick="resetMimi()">Reset Mimi</button>
+    </div>
+
+    <div id="game-viewport">
+        <div id="mimi-container" onclick="handleMimiClick()">
+            <div id="mimi-notification"></div>
+            <canvas id="mimi-canvas"></canvas>
+        </div>
+    </div>
+
+<script>
+// ==========================================
+// KONFIGURASI DAN STATE MACHINE
+// ==========================================
+const ASSETS_FILES = {
+    berjalan: 'berjalan.jpg',
+    memanjat: 'memanjat.jpg',
+    tidur: 'tidur.jpg',
+    inginterjatuh: 'inginterjatuh.jpg',
+    terjatuh: 'terjatuh.jpg',
+    hendakberdiri: 'hendakberdiri.jpg'
+};
+
+const NOTIFICATIONS = ['💔', '🚷', '🚯', '🚳', '🚱', '🔞', '📵', '🚭', '‼️', '❗'];
+
+const STATES = {
+    IDLE: 'IDLE',
+    WALKING: 'WALKING',
+    CLIMBING_LEFT: 'CLIMBING_LEFT',
+    CLIMBING_RIGHT: 'CLIMBING_RIGHT',
+    SLEEPING_LEFT: 'SLEEPING_LEFT',
+    SLEEPING_RIGHT: 'SLEEPING_RIGHT',
+    WAKING_LEFT: 'WAKING_LEFT',
+    WAKING_RIGHT: 'WAKING_RIGHT',
+    FALLING_LEFT: 'FALLING_LEFT',
+    FALLING_RIGHT: 'FALLING_RIGHT',
+    LANDED_LEFT: 'LANDED_LEFT',
+    LANDED_RIGHT: 'LANDED_RIGHT',
+    STANDING_LEFT: 'STANDING_LEFT',
+    STANDING_RIGHT: 'STANDING_RIGHT'
+};
+
+let processedCanvases = {};
+let assetsLoaded = 0;
+const totalAssets = Object.keys(ASSETS_FILES).length;
+
+// Entitas & Parameter Kontrol
+let charSize = 60;
+let notifScaleRatio = 0.4;
+let posX = window.innerWidth / 2;
+let posY = window.innerHeight - charSize;
+let dir = 'right';
+let currentState = STATES.IDLE;
+let speedMultiplier = 1.0;
+let isRandomBehavior = true;
+
+// Fisika & Gerakan
+let stateTimer = 0;
+let walkSpeed = 1.2;
+let climbSpeed = 1.0;
+let gravity = 0.45;
+let fallVelocity = 0;
+let currentNotif = '';
+
+// Sistem Kedip Piksel
+let isBlinking = false;
+let blinkTimer = null;
+
+// DOM Elements
+const container = document.getElementById('mimi-container');
+const canvas = document.getElementById('mimi-canvas');
+const ctx = canvas.getContext('2d');
+const notifEl = document.getElementById('mimi-notification');
+
+// ==========================================
+// PEMROSESAN TRANSPARANSI (CHROMA KEY BIRU)
+// ==========================================
+function loadAssets(callback) {
+    for (let key in ASSETS_FILES) {
+        const img = new Image();
+        img.src = ASSETS_FILES[key];
+        img.onload = () => {
+            processedCanvases[key] = processChromaKey(img);
+            assetsLoaded++;
+            if (assetsLoaded === totalAssets) {
+                callback();
+            }
+        };
+    }
+}
+
+function processChromaKey(img) {
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const cCtx = c.getContext('2d');
+    cCtx.drawImage(img, 0, 0);
+
+    const imgData = cCtx.getImageData(0, 0, c.width, c.height);
+    const data = imgData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+
+        if (b > 80 && b > r * 1.15 && b > g * 0.95) {
+            data[i + 3] = 0;
+        } else if (b > 120 && r < 100) {
+            data[i + 3] = 0;
+        }
+    }
+
+    cCtx.putImageData(imgData, 0, 0);
+    return c;
+}
+
+// ==========================================
+// SISTEM KEDIP PIXEL
+// ==========================================
+function scheduleBlink() {
+    clearTimeout(blinkTimer);
+    const delay = 2000 + Math.random() * 3000;
+
+    blinkTimer = setTimeout(() => {
+        triggerBlink();
+        if (Math.random() < 0.2) {
+            setTimeout(triggerBlink, 180);
+        }
+        scheduleBlink();
+    }, delay);
+}
+
+function triggerBlink() {
+    if (isBlinking || currentState.includes('SLEEPING')) return;
+    isBlinking = true;
+    const duration = 100 + Math.random() * 80;
+    setTimeout(() => {
+        isBlinking = false;
+    }, duration);
+}
+
+// ==========================================
+// RENDERING & PIXEL BLINK INTEGRATION
+// ==========================================
+function getCurrentSpriteKey() {
+    switch (currentState) {
+        case STATES.WALKING:
+        case STATES.IDLE:
+            return 'berjalan';
+        case STATES.CLIMBING_LEFT:
+        case STATES.CLIMBING_RIGHT:
+            return 'memanjat';
+        case STATES.SLEEPING_LEFT:
+        case STATES.SLEEPING_RIGHT:
+            return 'tidur';
+        case STATES.WAKING_LEFT:
+        case STATES.WAKING_RIGHT:
+        case STATES.FALLING_LEFT:
+        case STATES.FALLING_RIGHT:
+            return 'inginterjatuh';
+        case STATES.LANDED_LEFT:
+        case STATES.LANDED_RIGHT:
+            return 'terjatuh';
+        case STATES.STANDING_LEFT:
+        case STATES.STANDING_RIGHT:
+            return 'hendakberdiri';
+        default:
+            return 'berjalan';
+    }
+}
+
+function render() {
+    const spriteKey = getCurrentSpriteKey();
+    const sourceCanvas = processedCanvases[spriteKey];
+
+    if (!sourceCanvas) return;
+
+    canvas.width = charSize;
+    canvas.height = charSize;
+
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, charSize, charSize);
+
+    ctx.drawImage(sourceCanvas, 0, 0, charSize, charSize);
+
+    if (isBlinking) {
+        applyPixelBlink();
+    }
+}
+
+function applyPixelBlink() {
+    const BASE_SIZE = 100;
+    const scale = charSize / BASE_SIZE;
+
+    const eyeX = Math.round(45 * scale);
+    const eyeY = Math.round(30 * scale);
+    const blinkSize = Math.max(1, Math.round(charSize * 0.04));
+
+    const sampleX = Math.min(charSize - 1, eyeX);
+    const sampleY = Math.max(0, eyeY - 2);
+
+    const imgData = ctx.getImageData(0, 0, charSize, charSize);
+    const pixels = imgData.data;
+    const sampleIdx = (sampleY * charSize + sampleX) * 4;
+
+    const r = pixels[sampleIdx];
+    const g = pixels[sampleIdx + 1];
+    const b = pixels[sampleIdx + 2];
+    const a = pixels[sampleIdx + 3];
+
+    if (a > 0) {
+        ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+        ctx.fillRect(eyeX, eyeY, blinkSize * 2, blinkSize);
+    }
+}
+
+// ==========================================
+// FISIKA & ATURAN GERAKAN KONTINU
+// ==========================================
+function update(time) {
+    const maxW = window.innerWidth - charSize;
+    const maxH = window.innerHeight - charSize;
+
+    let smallBob = 0;
+    if (currentState === STATES.WALKING || currentState === STATES.IDLE) {
+        smallBob = Math.sin(time * 0.006) * 1.2;
+    } else if (currentState.includes('SLEEPING')) {
+        smallBob = Math.sin(time * 0.002) * 0.7;
+    }
+
+    stateTimer++;
+
+    switch (currentState) {
+        case STATES.IDLE:
+            if (isRandomBehavior && stateTimer > 90 / speedMultiplier) {
+                decideNextAction();
+            }
+            break;
+
+        case STATES.WALKING:
+            const moveStep = walkSpeed * speedMultiplier;
+            if (dir === 'right') {
+                posX += moveStep;
+                if (posX >= maxW) {
+                    posX = maxW;
+                    if (isRandomBehavior && Math.random() < 0.6) {
+                        switchState(STATES.CLIMBING_RIGHT);
+                    } else {
+                        dir = 'left';
+                        switchState(STATES.IDLE);
+                    }
+                }
+            } else {
+                posX -= moveStep;
+                if (posX <= 0) {
+                    posX = 0;
+                    if (isRandomBehavior && Math.random() < 0.6) {
+                        switchState(STATES.CLIMBING_LEFT);
+                    } else {
+                        dir = 'right';
+                        switchState(STATES.IDLE);
+                    }
+                }
+            }
+
+            if (isRandomBehavior && stateTimer > 180 / speedMultiplier && Math.random() < 0.008) {
+                switchState(STATES.IDLE);
+            }
+            break;
+
+        case STATES.CLIMBING_LEFT:
+            dir = 'left';
+            posX = 0;
+            posY -= climbSpeed * speedMultiplier;
+            if (posY <= 0) {
+                posY = 0;
+                switchState(STATES.SLEEPING_LEFT);
+            }
+            break;
+
+        case STATES.CLIMBING_RIGHT:
+            dir = 'right';
+            posX = maxW;
+            posY -= climbSpeed * speedMultiplier;
+            if (posY <= 0) {
+                posY = 0;
+                switchState(STATES.SLEEPING_RIGHT);
+            }
+            break;
+
+        case STATES.SLEEPING_LEFT:
+            dir = 'left';
+            currentNotif = 'Zzz';
+            if (isRandomBehavior && stateTimer > 300 / speedMultiplier) {
+                switchState(STATES.WAKING_LEFT);
+            }
+            break;
+
+        case STATES.SLEEPING_RIGHT:
+            dir = 'right';
+            currentNotif = 'Zzz';
+            if (isRandomBehavior && stateTimer > 300 / speedMultiplier) {
+                switchState(STATES.WAKING_RIGHT);
+            }
+            break;
+
+        case STATES.WAKING_LEFT:
+            dir = 'left';
+            currentNotif = '';
+            if (stateTimer > 40 / speedMultiplier) {
+                fallVelocity = 0;
+                switchState(STATES.FALLING_LEFT);
+            }
+            break;
+
+        case STATES.WAKING_RIGHT:
+            dir = 'right';
+            currentNotif = '';
+            if (stateTimer > 40 / speedMultiplier) {
+                fallVelocity = 0;
+                switchState(STATES.FALLING_RIGHT);
+            }
+            break;
+
+        case STATES.FALLING_LEFT:
+        case STATES.FALLING_RIGHT:
+            fallVelocity += gravity;
+            posY += fallVelocity;
+            if (posY >= maxH) {
+                posY = maxH;
+                currentNotif = NOTIFICATIONS[Math.floor(Math.random() * NOTIFICATIONS.length)];
+                switchState(currentState === STATES.FALLING_LEFT ? STATES.LANDED_LEFT : STATES.LANDED_RIGHT);
+            }
+            break;
+
+        case STATES.LANDED_LEFT:
+        case STATES.LANDED_RIGHT:
+            if (stateTimer > 50 / speedMultiplier) {
+                switchState(currentState === STATES.LANDED_LEFT ? STATES.STANDING_LEFT : STATES.STANDING_RIGHT);
+            }
+            break;
+
+        case STATES.STANDING_LEFT:
+        case STATES.STANDING_RIGHT:
+            currentNotif = '';
+            if (stateTimer > 45 / speedMultiplier) {
+                dir = currentState === STATES.STANDING_LEFT ? 'right' : 'left';
+                switchState(STATES.WALKING);
+            }
+            break;
+    }
+
+    posY = Math.max(0, Math.min(posY, maxH));
+    posX = Math.max(0, Math.min(posX, maxW));
+
+    const scaleX = (dir === 'left') ? -1 : 1;
+    container.style.transform = `translate3d(${posX}px, ${posY + smallBob}px, 0) scaleX(${scaleX})`;
+
+    if (currentNotif) {
+        notifEl.textContent = currentNotif;
+        notifEl.style.display = 'block';
+        notifEl.style.transform = `translateX(-50%) scaleX(${scaleX})`;
+
+        const calculatedNotifSize = Math.max(8, Math.round(charSize * notifScaleRatio));
+        notifEl.style.fontSize = calculatedNotifSize + 'px';
+    } else {
+        notifEl.style.display = 'none';
+    }
+
+    render();
+}
+
+function switchState(newState) {
+    currentState = newState;
+    stateTimer = 0;
+}
+
+function decideNextAction() {
+    const maxW = window.innerWidth - charSize;
+    if (posX <= 5) {
+        switchState(STATES.CLIMBING_LEFT);
+    } else if (posX >= maxW - 5) {
+        switchState(STATES.CLIMBING_RIGHT);
+    } else {
+        if (Math.random() < 0.7) {
+            dir = Math.random() < 0.5 ? 'left' : 'right';
+            switchState(STATES.WALKING);
+        } else {
+            dir = posX < maxW / 2 ? 'left' : 'right';
+            switchState(STATES.WALKING);
+        }
+    }
+}
+
+// ==========================================
+// FITUR ASISTEN: ROTASI, READ SCREEN, OVERLAY
+// ==========================================
+function changeOrientation(mode) {
+    if (screen.orientation && screen.orientation.lock) {
+        if (mode === 'portrait') {
+            screen.orientation.lock('portrait').catch(e => console.log(e));
+        } else if (mode === 'landscape') {
+            screen.orientation.lock('landscape').catch(e => console.log(e));
+        } else {
+            screen.orientation.unlock();
+        }
+    }
+}
+
+function readScreenText() {
+    // Membaca teks terdeteksi di dokumen / WebView
+    const bodyText = document.body.innerText || "Tidak ada teks terdeteksi.";
+    const cleanText = bodyText.replace(/MENU|Mimi Assistant|Ukuran Mimi|Kecepatan|Kunci Rotasi Layar|Kelakuan Random|ON|OFF|Baca Teks Layar|Mode Overlay APK|Reset Mimi/g, '').trim();
+    
+    speakText(cleanText.length > 0 ? cleanText.substring(0, 150) : "Mimi siap membaca layar Anda!");
+}
+
+function speakText(text) {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'id-ID';
+        utterance.rate = 1.0;
+        window.speechSynthesis.speak(utterance);
+    } else {
+        alert("Fitur suara tidak didukung di perangkat ini.");
+    }
+}
+
+function handleMimiClick() {
+    speakText("Halo! Aku Mimi, asisten pikselmu!");
+}
+
+function toggleOverlayMode() {
+    if (window.AndroidInterface && window.AndroidInterface.toggleOverlay) {
+        window.AndroidInterface.toggleOverlay();
+    } else {
+        alert("Fitur Overlay Standalone aktif ketika dijalankan di dalam aplikasi Android APK (Cordova/Capacitor).");
+    }
+}
+
+// Handle Auto Resizing saat Layar HP Diputar (Landscape/Portrait)
+window.addEventListener('resize', () => {
+    const maxH = window.innerHeight - charSize;
+    const maxW = window.innerWidth - charSize;
+    if (posY > maxH) posY = maxH;
+    if (posX > maxW) posX = maxW;
+});
+
+// ==========================================
+// CONTROL LISTENERS & LOOP
+// ==========================================
+function gameLoop(time) {
+    update(time);
+    requestAnimationFrame(gameLoop);
+}
+
+const sizeSlider = document.getElementById('size-slider');
+const sizeVal = document.getElementById('size-val');
+sizeSlider.addEventListener('input', (e) => {
+    charSize = parseInt(e.target.value);
+    sizeVal.textContent = charSize + 'px';
+    const maxH = window.innerHeight - charSize;
+    if (posY > maxH) posY = maxH;
+});
+
+const notifScaleSlider = document.getElementById('notif-scale-slider');
+const notifScaleVal = document.getElementById('notif-scale-val');
+notifScaleSlider.addEventListener('input', (e) => {
+    notifScaleRatio = parseFloat(e.target.value);
+    notifScaleVal.textContent = notifScaleRatio.toFixed(2) + 'x';
+});
+
+const speedSlider = document.getElementById('speed-slider');
+const speedVal = document.getElementById('speed-val');
+speedSlider.addEventListener('input', (e) => {
+    speedMultiplier = parseFloat(e.target.value);
+    speedVal.textContent = speedMultiplier.toFixed(1) + 'x';
+});
+
+function toggleRandom() {
+    isRandomBehavior = !isRandomBehavior;
+    const btn = document.getElementById('random-btn');
+    btn.textContent = isRandomBehavior ? 'ON' : 'OFF';
+    btn.classList.toggle('active', isRandomBehavior);
+}
+
+function resetMimi() {
+    charSize = 60;
+    sizeSlider.value = 60;
+    sizeVal.textContent = '60px';
+
+    notifScaleRatio = 0.4;
+    notifScaleSlider.value = 0.4;
+    notifScaleVal.textContent = '0.40x';
+
+    speedMultiplier = 1.0;
+    speedSlider.value = 1.0;
+    speedVal.textContent = '1.0x';
+
+    posX = window.innerWidth / 2;
+    posY = window.innerHeight - charSize;
+    dir = 'right';
+    currentNotif = '';
+    switchState(STATES.WALKING);
+}
+
+function toggleUI() {
+    document.getElementById('ui-panel').classList.toggle('collapsed');
+}
+
+loadAssets(() => {
+    scheduleBlink();
+    requestAnimationFrame(gameLoop);
+});
+</script>
+</body>
+</html>
