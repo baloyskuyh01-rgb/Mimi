@@ -3,13 +3,16 @@
   "version": "1.0.0",
   "description": "Mimi Pixel Pet Assistant",
   "private": true,
+  "type": "module",
   "scripts": {
-    "build": "echo Build handled by GitHub Actions"
+    "build": "echo Build successful - static HTML project ready",
+    "start": "npx serve .",
+    "check": "node -e \"const fs=require('fs'); if(!fs.existsSync('index.html')) { console.error('index.html tidak ditemukan'); process.exit(1); } console.log('index.html ditemukan');\""
   },
   "dependencies": {
-    "@capacitor/core": "^7.4.0"
+    "serve": "^14.2.4"
   },
-  "devDependencies": {
-    "@capacitor/cli": "^7.4.0"
+  "engines": {
+    "node": ">=18"
   }
 }
