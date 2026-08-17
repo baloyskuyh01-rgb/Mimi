@@ -1,12 +1,13 @@
-name: Build Android APK
+name: Build Debug APK
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
-  build:
+  build-debug:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,22 +25,28 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Install Capacitor & Build
+      - name: Install Capacitor & Sync
         run: |
-          npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap init "Mimi Pet" "com.mimi.pixelpet" --web-dir .
-          npx cap add android
+          if [ ! -f package.json ]; then npm init -y; fi
+          npm install @capacitor/core@^6.0.0 @capacitor/cli@^6.0.0 @capacitor/android@^6.0.0
+          
+          mkdir -p www
+          cp -r index.html *.jpg www/ 2>/dev/null || true
+          
+          npx cap init "Mimi Pet" "com.mimi.pixelpet" --web-dir www
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
           npx cap sync android
 
-      - name: Build Android APK
+      - name: Build Debug APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Upload APK Artifact
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: Mimi-Pixel-Pet-APK
+          name: Mimi-Debug-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
