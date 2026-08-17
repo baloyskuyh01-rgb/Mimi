@@ -1,45 +1,14 @@
-name: Build Android APK
-
-on:
-  push:
-    branches:
-      - main
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Install Capacitor & Build
-        run: |
-          npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap init "Mimi Pet" "com.mimi.pixelpet" --web-dir .
-          npx cap add android
-          npx cap sync android
-
-      - name: Build Android APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
-
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Mimi-Pixel-Pet-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+{
+  "name": "mimi-pixel-pet",
+  "version": "1.0.0",
+  "description": "Mimi Pixel Pet Floating Assistant",
+  "main": "index.html",
+  "scripts": {
+    "build": "cap sync"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/core": "^6.0.0"
+  }
+}
