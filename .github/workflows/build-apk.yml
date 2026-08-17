@@ -1,4 +1,4 @@
-name: Build Debug APK
+ name: Build Debug APK
 
 on:
   push:
@@ -25,15 +25,18 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Install Capacitor & Sync
+      - name: Prepare Assets and Install Capacitor
         run: |
-          if [ ! -f package.json ]; then npm init -y; fi
-          npm install @capacitor/core@^6.0.0 @capacitor/cli@^6.0.0 @capacitor/android@^6.0.0
+          if [ ! -f package.json ]; then
+            echo '{"name": "mimi-pixel-pet", "version": "1.0.0", "private": true, "dependencies": {"@capacitor/android": "^6.0.0", "@capacitor/cli": "^6.0.0", "@capacitor/core": "^6.0.0"}}' > package.json
+          fi
+          npm install
           
           mkdir -p www
           cp -r index.html *.jpg www/ 2>/dev/null || true
           
-          npx cap init "Mimi Pet" "com.mimi.pixelpet" --web-dir www
+          npx cap init "Mimi Pet" "com.mimi.pixelpet" --web-dir www || true
+          
           if [ ! -d "android" ]; then
             npx cap add android
           fi
@@ -44,10 +47,11 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
-          npm install @capacitor-community/floating-bubble
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: Mimi-Debug-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
+         
+            
