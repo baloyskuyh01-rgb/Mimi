@@ -3,3 +3,5 @@
 <!-- Izin Membaca Teks / Layar (Accessibility Service / Screen Capture) -->
 <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
