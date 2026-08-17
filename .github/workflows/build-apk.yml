@@ -44,6 +44,7 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
+          npm install @capacitor-community/floating-bubble
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
