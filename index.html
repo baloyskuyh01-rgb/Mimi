@@ -18,7 +18,7 @@
             width: 100vw;
             height: 100vh;
             overflow: hidden;
-            background-color: transparent; /* Transparan agar mendukung mode overlay Android */
+            background-color: transparent; /* Transparan agar transparan saat mode Floating System Overlay */
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             position: relative;
         }
@@ -30,30 +30,30 @@
             width: 100vw;
             height: 100vh;
             overflow: hidden;
-            pointer-events: none; /* Klik tembus ke aplikasi di bawahnya jika dalam mode overlay */
+            pointer-events: none; /* Sentuhan tembus ke aplikasi lain jika transparan */
         }
 
-        /* Container karakter Mimi */
+        /* Container Mimi */
         #mimi-container {
             position: absolute;
             top: 0;
             left: 0;
             will-change: transform;
-            pointer-events: auto; /* Mimi tetap bisa diinteraksi */
+            pointer-events: auto; /* Mimi tetap bisa di-klik */
             display: flex;
             justify-content: center;
             align-items: center;
             cursor: pointer;
         }
 
-        /* Canvas rendering Mimi & kedip piksel */
+        /* Canvas rendering Mimi */
         #mimi-canvas {
             image-rendering: pixelated;
             image-rendering: crisp-edges;
             display: block;
         }
 
-        /* Notifikasi di atas kepala (Tidur Zzz / Jatuh / Suara) */
+        /* Notifikasi di atas kepala */
         #mimi-notification {
             position: absolute;
             top: -1.2em;
@@ -66,7 +66,7 @@
             z-index: 10;
         }
 
-        /* Tombol Toggle Panel UI */
+        /* Toggle Menu UI */
         #ui-toggle {
             position: fixed;
             top: 12px;
@@ -212,7 +212,7 @@
         <div class="control-group">
             <label>Kunci Rotasi Layar</label>
             <select id="orient-select" onchange="changeOrientation(this.value)">
-                <option value="auto">Otomatis / Bebas</option>
+                <option value="auto">Bebas / Auto</option>
                 <option value="portrait">Potret (Portrait)</option>
                 <option value="landscape">Lansekap (Landscape)</option>
             </select>
@@ -224,7 +224,7 @@
         </div>
 
         <button class="btn-action" onclick="readScreenText()">📖 Baca Teks Layar</button>
-        <button class="btn-action" onclick="toggleOverlayMode()">📱 Mode Overlay APK</button>
+        <button class="btn-action" onclick="toggleFloatingOverlay()">📱 Mode Mengambang (Floating)</button>
         <button class="btn-reset" onclick="resetMimi()">Reset Mimi</button>
     </div>
 
@@ -271,7 +271,6 @@ let processedCanvases = {};
 let assetsLoaded = 0;
 const totalAssets = Object.keys(ASSETS_FILES).length;
 
-// Entitas & Parameter Kontrol
 let charSize = 60;
 let notifScaleRatio = 0.4;
 let posX = window.innerWidth / 2;
@@ -281,7 +280,6 @@ let currentState = STATES.IDLE;
 let speedMultiplier = 1.0;
 let isRandomBehavior = true;
 
-// Fisika & Gerakan
 let stateTimer = 0;
 let walkSpeed = 1.2;
 let climbSpeed = 1.0;
@@ -289,18 +287,16 @@ let gravity = 0.45;
 let fallVelocity = 0;
 let currentNotif = '';
 
-// Sistem Kedip Piksel
 let isBlinking = false;
 let blinkTimer = null;
 
-// DOM Elements
 const container = document.getElementById('mimi-container');
 const canvas = document.getElementById('mimi-canvas');
 const ctx = canvas.getContext('2d');
 const notifEl = document.getElementById('mimi-notification');
 
 // ==========================================
-// PEMROSESAN TRANSPARANSI (CHROMA KEY BIRU)
+// MENGHILANGKAN BACKGROUND BLUE
 // ==========================================
 function loadAssets(callback) {
     for (let key in ASSETS_FILES) {
@@ -343,7 +339,7 @@ function processChromaKey(img) {
 }
 
 // ==========================================
-// SISTEM KEDIP PIXEL
+// KEDIP PIXEL
 // ==========================================
 function scheduleBlink() {
     clearTimeout(blinkTimer);
@@ -361,54 +357,41 @@ function scheduleBlink() {
 function triggerBlink() {
     if (isBlinking || currentState.includes('SLEEPING')) return;
     isBlinking = true;
-    const duration = 100 + Math.random() * 80;
-    setTimeout(() => {
-        isBlinking = false;
-    }, duration);
+    setTimeout(() => { isBlinking = false; }, 100 + Math.random() * 80);
 }
 
 // ==========================================
-// RENDERING & PIXEL BLINK INTEGRATION
+// RENDERING
 // ==========================================
 function getCurrentSpriteKey() {
     switch (currentState) {
         case STATES.WALKING:
-        case STATES.IDLE:
-            return 'berjalan';
+        case STATES.IDLE: return 'berjalan';
         case STATES.CLIMBING_LEFT:
-        case STATES.CLIMBING_RIGHT:
-            return 'memanjat';
+        case STATES.CLIMBING_RIGHT: return 'memanjat';
         case STATES.SLEEPING_LEFT:
-        case STATES.SLEEPING_RIGHT:
-            return 'tidur';
+        case STATES.SLEEPING_RIGHT: return 'tidur';
         case STATES.WAKING_LEFT:
         case STATES.WAKING_RIGHT:
         case STATES.FALLING_LEFT:
-        case STATES.FALLING_RIGHT:
-            return 'inginterjatuh';
+        case STATES.FALLING_RIGHT: return 'inginterjatuh';
         case STATES.LANDED_LEFT:
-        case STATES.LANDED_RIGHT:
-            return 'terjatuh';
+        case STATES.LANDED_RIGHT: return 'terjatuh';
         case STATES.STANDING_LEFT:
-        case STATES.STANDING_RIGHT:
-            return 'hendakberdiri';
-        default:
-            return 'berjalan';
+        case STATES.STANDING_RIGHT: return 'hendakberdiri';
+        default: return 'berjalan';
     }
 }
 
 function render() {
     const spriteKey = getCurrentSpriteKey();
     const sourceCanvas = processedCanvases[spriteKey];
-
     if (!sourceCanvas) return;
 
     canvas.width = charSize;
     canvas.height = charSize;
-
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, charSize, charSize);
-
     ctx.drawImage(sourceCanvas, 0, 0, charSize, charSize);
 
     if (isBlinking) {
@@ -417,33 +400,22 @@ function render() {
 }
 
 function applyPixelBlink() {
-    const BASE_SIZE = 100;
-    const scale = charSize / BASE_SIZE;
-
+    const scale = charSize / 100;
     const eyeX = Math.round(45 * scale);
     const eyeY = Math.round(30 * scale);
     const blinkSize = Math.max(1, Math.round(charSize * 0.04));
 
-    const sampleX = Math.min(charSize - 1, eyeX);
-    const sampleY = Math.max(0, eyeY - 2);
+    const sampleIdx = (Math.max(0, eyeY - 2) * charSize + Math.min(charSize - 1, eyeX)) * 4;
+    const pixels = ctx.getImageData(0, 0, charSize, charSize).data;
 
-    const imgData = ctx.getImageData(0, 0, charSize, charSize);
-    const pixels = imgData.data;
-    const sampleIdx = (sampleY * charSize + sampleX) * 4;
-
-    const r = pixels[sampleIdx];
-    const g = pixels[sampleIdx + 1];
-    const b = pixels[sampleIdx + 2];
-    const a = pixels[sampleIdx + 3];
-
-    if (a > 0) {
-        ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+    if (pixels[sampleIdx + 3] > 0) {
+        ctx.fillStyle = `rgba(${pixels[sampleIdx]},${pixels[sampleIdx+1]},${pixels[sampleIdx+2]},${pixels[sampleIdx+3]/255})`;
         ctx.fillRect(eyeX, eyeY, blinkSize * 2, blinkSize);
     }
 }
 
 // ==========================================
-// FISIKA & ATURAN GERAKAN KONTINU
+// LOGIKA GERAKAN
 // ==========================================
 function update(time) {
     const maxW = window.innerWidth - charSize;
@@ -460,9 +432,7 @@ function update(time) {
 
     switch (currentState) {
         case STATES.IDLE:
-            if (isRandomBehavior && stateTimer > 90 / speedMultiplier) {
-                decideNextAction();
-            }
+            if (isRandomBehavior && stateTimer > 90 / speedMultiplier) decideNextAction();
             break;
 
         case STATES.WALKING:
@@ -471,82 +441,44 @@ function update(time) {
                 posX += moveStep;
                 if (posX >= maxW) {
                     posX = maxW;
-                    if (isRandomBehavior && Math.random() < 0.6) {
-                        switchState(STATES.CLIMBING_RIGHT);
-                    } else {
-                        dir = 'left';
-                        switchState(STATES.IDLE);
-                    }
+                    if (isRandomBehavior && Math.random() < 0.6) switchState(STATES.CLIMBING_RIGHT);
+                    else { dir = 'left'; switchState(STATES.IDLE); }
                 }
             } else {
                 posX -= moveStep;
                 if (posX <= 0) {
                     posX = 0;
-                    if (isRandomBehavior && Math.random() < 0.6) {
-                        switchState(STATES.CLIMBING_LEFT);
-                    } else {
-                        dir = 'right';
-                        switchState(STATES.IDLE);
-                    }
+                    if (isRandomBehavior && Math.random() < 0.6) switchState(STATES.CLIMBING_LEFT);
+                    else { dir = 'right'; switchState(STATES.IDLE); }
                 }
             }
-
-            if (isRandomBehavior && stateTimer > 180 / speedMultiplier && Math.random() < 0.008) {
-                switchState(STATES.IDLE);
-            }
+            if (isRandomBehavior && stateTimer > 180 / speedMultiplier && Math.random() < 0.008) switchState(STATES.IDLE);
             break;
 
         case STATES.CLIMBING_LEFT:
-            dir = 'left';
-            posX = 0;
-            posY -= climbSpeed * speedMultiplier;
-            if (posY <= 0) {
-                posY = 0;
-                switchState(STATES.SLEEPING_LEFT);
-            }
+            dir = 'left'; posX = 0; posY -= climbSpeed * speedMultiplier;
+            if (posY <= 0) { posY = 0; switchState(STATES.SLEEPING_LEFT); }
             break;
 
         case STATES.CLIMBING_RIGHT:
-            dir = 'right';
-            posX = maxW;
-            posY -= climbSpeed * speedMultiplier;
-            if (posY <= 0) {
-                posY = 0;
-                switchState(STATES.SLEEPING_RIGHT);
-            }
+            dir = 'right'; posX = maxW; posY -= climbSpeed * speedMultiplier;
+            if (posY <= 0) { posY = 0; switchState(STATES.SLEEPING_RIGHT); }
             break;
 
         case STATES.SLEEPING_LEFT:
-            dir = 'left';
-            currentNotif = 'Zzz';
-            if (isRandomBehavior && stateTimer > 300 / speedMultiplier) {
-                switchState(STATES.WAKING_LEFT);
-            }
-            break;
-
         case STATES.SLEEPING_RIGHT:
-            dir = 'right';
             currentNotif = 'Zzz';
             if (isRandomBehavior && stateTimer > 300 / speedMultiplier) {
-                switchState(STATES.WAKING_RIGHT);
+                switchState(currentState === STATES.SLEEPING_LEFT ? STATES.WAKING_LEFT : STATES.WAKING_RIGHT);
             }
             break;
 
         case STATES.WAKING_LEFT:
-            dir = 'left';
-            currentNotif = '';
-            if (stateTimer > 40 / speedMultiplier) {
-                fallVelocity = 0;
-                switchState(STATES.FALLING_LEFT);
-            }
-            break;
-
         case STATES.WAKING_RIGHT:
-            dir = 'right';
             currentNotif = '';
             if (stateTimer > 40 / speedMultiplier) {
                 fallVelocity = 0;
-                switchState(STATES.FALLING_RIGHT);
+                switchState(currentState === STATES.WAKING_LEFT ? STATES.FALLING_LEFT : STATES.FALLING_RIGHT);
             }
             break;
 
@@ -588,9 +520,7 @@ function update(time) {
         notifEl.textContent = currentNotif;
         notifEl.style.display = 'block';
         notifEl.style.transform = `translateX(-50%) scaleX(${scaleX})`;
-
-        const calculatedNotifSize = Math.max(8, Math.round(charSize * notifScaleRatio));
-        notifEl.style.fontSize = calculatedNotifSize + 'px';
+        notifEl.style.fontSize = Math.max(8, Math.round(charSize * notifScaleRatio)) + 'px';
     } else {
         notifEl.style.display = 'none';
     }
@@ -598,49 +528,37 @@ function update(time) {
     render();
 }
 
-function switchState(newState) {
-    currentState = newState;
-    stateTimer = 0;
-}
+function switchState(newState) { currentState = newState; stateTimer = 0; }
 
 function decideNextAction() {
     const maxW = window.innerWidth - charSize;
-    if (posX <= 5) {
-        switchState(STATES.CLIMBING_LEFT);
-    } else if (posX >= maxW - 5) {
-        switchState(STATES.CLIMBING_RIGHT);
-    } else {
-        if (Math.random() < 0.7) {
-            dir = Math.random() < 0.5 ? 'left' : 'right';
-            switchState(STATES.WALKING);
-        } else {
-            dir = posX < maxW / 2 ? 'left' : 'right';
-            switchState(STATES.WALKING);
-        }
+    if (posX <= 5) switchState(STATES.CLIMBING_LEFT);
+    else if (posX >= maxW - 5) switchState(STATES.CLIMBING_RIGHT);
+    else {
+        dir = Math.random() < 0.5 ? 'left' : 'right';
+        switchState(STATES.WALKING);
     }
 }
 
 // ==========================================
-// FITUR ASISTEN: ROTASI, READ SCREEN, OVERLAY
+// FITUR BARU: ROTASI, READ SCREEN, OVERLAY
 // ==========================================
 function changeOrientation(mode) {
     if (screen.orientation && screen.orientation.lock) {
-        if (mode === 'portrait') {
-            screen.orientation.lock('portrait').catch(e => console.log(e));
-        } else if (mode === 'landscape') {
-            screen.orientation.lock('landscape').catch(e => console.log(e));
-        } else {
-            screen.orientation.unlock();
-        }
+        if (mode === 'portrait') screen.orientation.lock('portrait').catch(e => console.log(e));
+        else if (mode === 'landscape') screen.orientation.lock('landscape').catch(e => console.log(e));
+        else screen.orientation.unlock();
     }
 }
 
 function readScreenText() {
-    // Membaca teks terdeteksi di dokumen / WebView
-    const bodyText = document.body.innerText || "Tidak ada teks terdeteksi.";
-    const cleanText = bodyText.replace(/MENU|Mimi Assistant|Ukuran Mimi|Kecepatan|Kunci Rotasi Layar|Kelakuan Random|ON|OFF|Baca Teks Layar|Mode Overlay APK|Reset Mimi/g, '').trim();
-    
-    speakText(cleanText.length > 0 ? cleanText.substring(0, 150) : "Mimi siap membaca layar Anda!");
+    // Bridge native ke Android OCR / WebSpeech fallback
+    if (window.AndroidNative && window.AndroidNative.readScreen) {
+        window.AndroidNative.readScreen();
+    } else {
+        const text = document.body.innerText.replace(/MENU|Mimi Assistant|Ukuran Mimi|Kecepatan|Kunci Rotasi Layar|Kelakuan Random|ON|OFF|Baca Teks Layar|Mode Mengambang \(Floating\)|Reset Mimi/g, '').trim();
+        speakText(text.length > 0 ? text.substring(0, 100) : "Mimi siap membaca layar Anda!");
+    }
 }
 
 function speakText(text) {
@@ -650,60 +568,42 @@ function speakText(text) {
         utterance.lang = 'id-ID';
         utterance.rate = 1.0;
         window.speechSynthesis.speak(utterance);
-    } else {
-        alert("Fitur suara tidak didukung di perangkat ini.");
     }
 }
 
 function handleMimiClick() {
-    speakText("Halo! Aku Mimi, asisten pikselmu!");
+    speakText("Halo! Aku Mimi!");
 }
 
-function toggleOverlayMode() {
-    if (window.AndroidInterface && window.AndroidInterface.toggleOverlay) {
-        window.AndroidInterface.toggleOverlay();
+function toggleFloatingOverlay() {
+    if (window.AndroidNative && window.AndroidNative.startFloatingService) {
+        window.AndroidNative.startFloatingService();
     } else {
-        alert("Fitur Overlay Standalone aktif ketika dijalankan di dalam aplikasi Android APK (Cordova/Capacitor).");
+        alert("Fitur Floating Overlay (keluar dari APK) aktif setelah dibuild menjadi APK Android native dengan izin Display Over Other Apps.");
     }
 }
 
-// Handle Auto Resizing saat Layar HP Diputar (Landscape/Portrait)
-window.addEventListener('resize', () => {
-    const maxH = window.innerHeight - charSize;
-    const maxW = window.innerWidth - charSize;
-    if (posY > maxH) posY = maxH;
-    if (posX > maxW) posX = maxW;
-});
-
 // ==========================================
-// CONTROL LISTENERS & LOOP
+// CONTROLS & LISTENERS
 // ==========================================
 function gameLoop(time) {
     update(time);
     requestAnimationFrame(gameLoop);
 }
 
-const sizeSlider = document.getElementById('size-slider');
-const sizeVal = document.getElementById('size-val');
-sizeSlider.addEventListener('input', (e) => {
+document.getElementById('size-slider').addEventListener('input', (e) => {
     charSize = parseInt(e.target.value);
-    sizeVal.textContent = charSize + 'px';
-    const maxH = window.innerHeight - charSize;
-    if (posY > maxH) posY = maxH;
+    document.getElementById('size-val').textContent = charSize + 'px';
 });
 
-const notifScaleSlider = document.getElementById('notif-scale-slider');
-const notifScaleVal = document.getElementById('notif-scale-val');
-notifScaleSlider.addEventListener('input', (e) => {
+document.getElementById('notif-scale-slider').addEventListener('input', (e) => {
     notifScaleRatio = parseFloat(e.target.value);
-    notifScaleVal.textContent = notifScaleRatio.toFixed(2) + 'x';
+    document.getElementById('notif-scale-val').textContent = notifScaleRatio.toFixed(2) + 'x';
 });
 
-const speedSlider = document.getElementById('speed-slider');
-const speedVal = document.getElementById('speed-val');
-speedSlider.addEventListener('input', (e) => {
+document.getElementById('speed-slider').addEventListener('input', (e) => {
     speedMultiplier = parseFloat(e.target.value);
-    speedVal.textContent = speedMultiplier.toFixed(1) + 'x';
+    document.getElementById('speed-val').textContent = speedMultiplier.toFixed(1) + 'x';
 });
 
 function toggleRandom() {
@@ -715,27 +615,24 @@ function toggleRandom() {
 
 function resetMimi() {
     charSize = 60;
-    sizeSlider.value = 60;
-    sizeVal.textContent = '60px';
-
     notifScaleRatio = 0.4;
-    notifScaleSlider.value = 0.4;
-    notifScaleVal.textContent = '0.40x';
-
     speedMultiplier = 1.0;
-    speedSlider.value = 1.0;
-    speedVal.textContent = '1.0x';
-
     posX = window.innerWidth / 2;
     posY = window.innerHeight - charSize;
     dir = 'right';
-    currentNotif = '';
     switchState(STATES.WALKING);
 }
 
 function toggleUI() {
     document.getElementById('ui-panel').classList.toggle('collapsed');
 }
+
+window.addEventListener('resize', () => {
+    const maxH = window.innerHeight - charSize;
+    const maxW = window.innerWidth - charSize;
+    if (posY > maxH) posY = maxH;
+    if (posX > maxW) posX = maxW;
+});
 
 loadAssets(() => {
     scheduleBlink();
@@ -744,3 +641,6 @@ loadAssets(() => {
 </script>
 </body>
 </html>
+                        
+    
+    
