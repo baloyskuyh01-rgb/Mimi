@@ -1,0 +1,5 @@
+<!-- Izin Mengambang di Atas Aplikasi Lain -->
+<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+<!-- Izin Membaca Teks / Layar (Accessibility Service / Screen Capture) -->
+<uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
